@@ -1,5 +1,6 @@
-extensions [ csv ]
-breed [ stations station ]
+extensions [ csv table ]
+breed [ stations station]
+breed [ trucks truck]
 stations-own [
 _simulated_num_bikes_available
 _simulated_num_docks_available
@@ -13,6 +14,15 @@ _total_departure_count
 _total_arrival_count
 _departure_cumulative_relative_frequency
 _arrival_cumulative_relative_frequency
+_forecast
+]
+
+trucks-own [
+tcap
+cargo
+pick
+drop
+quantity
 ]
 
 globals [
@@ -140,7 +150,8 @@ to setup-panel
       set panel_data_length length panel_data
       set vals_list first panel_data
       set vals_list_length length vals_list
-      go
+    go
+
       ]
 end
 
@@ -158,20 +169,65 @@ to-report read-data [ file_name ]
   report rows
 end
 
+
+to set-forecast
+  ;; setup forecast per station with hour as key (military time)
+  file-open "Boston_Hubway_Forecast.csv"
+  let h csv:from-row file-read-line
+  ifelse empty? h
+    [ output-print word "Failed to read " panel_data_source ]
+    [
+  while [ not file-at-end? ] [
+    let row csv:from-row file-read-line
+    ask stations with[_station_id = first row] [ table:put _forecast (item 1 row) (item 2 row)]
+  ]
+    file-close ]
+end
+
 to go
   set sim_timestep_to_panel_timestep ( 60 / sim_timestep_minutes )
-  if sim_timestep_counter = 0 [ update-station-agents ]
+  if sim_timestep_counter = 0 [ update-station-agents update-trucks] ;; initialize trucks on top of stations
   set sim_timestep_counter ( sim_timestep_counter + 1 )  ;; increment the counter
   if sim_timestep_counter >= sim_timestep_to_panel_timestep [ set sim_timestep_counter 0 ]
   user-trip-submodel
-  rebalancing-submodel
+  ;;rebalancing-submodel
   update-station-status
+  ;; rebalancing animation and steps toggled by rebalance global switch
+  if rebalance [
+    if sim_timestep_counter > 0 and sim_timestep_counter < 20 [ ask trucks [face pick fd (distance pick) / 19] ]
+    if sim_timestep_counter = 20 [pickup_bikes]
+    if sim_timestep_counter > 20 and sim_timestep_counter < 50 [ ask trucks [face drop fd (distance drop) / 29] ]
+    if sim_timestep_counter = 50 [dropoff_bikes]
+  ]
   tick
   set sim_elapsed_hours ( ticks / sim_timestep_to_panel_timestep )
   set sim_elapsed_days ( sim_elapsed_hours / 24 )
   if sim_elapsed_days >= days_to_simulate [
     output-print ( word "[" date-and-time "] Simulation of " sim_elapsed_days " days completed." )
     stop
+  ]
+end
+
+to update-trucks
+  ;; initialize trucks
+  ifelse not any? trucks [
+    create-trucks num_trucks [
+      set tcap 20
+      set cargo 0
+      set color green
+      set shape "car"
+      set size 1
+      move-to station 63
+      set_pickup_destination ;; set initial pickup point
+      set_dropoff_destination ;; set initial dropoff point
+    ]
+  ]
+  [
+    ;; update pickup and dropoff points at every time step 0
+    if rebalance [
+      set_pickup_destination
+      set_dropoff_destination
+    ]
   ]
 end
 
@@ -187,6 +243,7 @@ to update-station-agents
         set _station_id ?
         set _simulated_num_bikes_available -1
         set _simulated_num_docks_available -1
+        set _forecast table:make ;; create dict of forecasts / hour
       ]
     ]
     ask stations with [ _station_id = ? ] [
@@ -208,6 +265,7 @@ to update-station-agents
       ]
     ]
   ]
+  if [table:length _forecast] of station 0 = 0 [ set-forecast ] ;; initialize stations with forecast data
 end
 
 to fetch-each-station-panel-data
@@ -375,8 +433,99 @@ end
 
 ;;; Rabalancing Submodel follows:
 
-to rebalancing-submodel
+;;to rebalancing-submodel
   ;; To do: add rebalancing submodel here.
+;;end
+
+;; action to pickup bikes from pickup point and update values
+to pickup_bikes
+  ask trucks [
+  move-to pick
+  let tmp (tcap - cargo) ;; actual capacity of truck
+  let sav [_simulated_num_bikes_available] of pick ;; num bikes available for pickup
+  let truquant 0
+  ifelse sav >= quantity [set truquant quantity] [set truquant sav] ;; set quantity for pickup
+
+  ;; update truck cargo as well as station avaiable bikes and docks
+  ifelse tmp >= truquant
+    [ set cargo truquant
+    ask pick
+    [set _simulated_num_bikes_available (_simulated_num_bikes_available - truquant)
+     set _simulated_num_docks_available (_simulated_num_docks_available + truquant)]
+    ]
+    [set cargo tmp
+    ask pick
+      [set _simulated_num_bikes_available (_simulated_num_bikes_available - tmp)
+       set _simulated_num_docks_available (_simulated_num_docks_available + tmp)]
+    ]
+;;  ask pick [ifelse tmp >= truquant
+;;      [set _simulated_num_bikes_available (_simulated_num_bikes_available - truquant)
+;;       set _simulated_num_docks_available (_simulated_num_docks_available + truquant)]
+;;      [set _simulated_num_bikes_available (_simulated_num_bikes_available - tmp)
+;;       set _simulated_num_docks_available (_simulated_num_docks_available + tmp)] ]
+  set color cyan ;; color for dropping off
+  ]
+end
+
+to dropoff_bikes
+  ask trucks [
+  move-to drop
+  let sav [_capacity - _simulated_num_bikes_available] of drop ;; actual capacity to take in bikes
+  let truquant 0
+  ifelse sav >= cargo [set truquant cargo] [set truquant sav] ;; set quantity for dropoff
+
+  ;; update station available bikes and docks
+  ask drop
+    [set _simulated_num_bikes_available (_simulated_num_bikes_available + truquant)
+     set _simulated_num_docks_available (_simulated_num_docks_available - truquant)]
+  set cargo (cargo - truquant) ;; update truck cargo
+  set color green ;; color for pickup
+  ]
+end
+
+to set_pickup_destination
+  let t (get_time + 1) ;; next time step
+  if t = 24 [set t 0]
+  let station_set get_supply t ;; get station-set with most supply at next time step
+
+  ;; assign closest truck for each supply station
+  foreach [who] of trucks [? -> let st_id [who] of station_set with-min[distance truck ?]
+    ask truck ? [set pick station first st_id set quantity ceiling (([table:get _forecast t] of station first st_id) * -1)]
+    ask station_set [ set station_set station_set with[self != station first st_id]]
+  ]
+end
+
+to set_dropoff_destination
+  let t (get_time + 1) ;; next time step
+  if t = 24 [set t 0]
+  let station_set get_demand t ;; get station-set with most demand at next time step
+
+  ;; assign closest truck for each demand station
+  foreach [who] of trucks [? -> let st_id [who] of station_set with-min[distance truck ?]
+    ask truck ? [set drop station first st_id set quantity ceiling (([table:get _forecast t] of station first st_id) * -1)]
+    ask station_set [ set station_set station_set with[self != station first st_id]]
+  ]
+end
+
+to-report get_demand [t]
+  ;;let top stations with-min[table:get _forecast t] ;;sort-on [who]
+  ;;ifelse count top > num_trucks [report n-of num_trucks top] [report top]
+  let top sublist (sort-on [table:get _forecast t] stations) 0 num_trucks ;; _forecast is hour : demand
+  report turtle-set top
+end
+
+to-report get_supply [t]
+  ;;let top stations with-max[table:get _forecast t] ;;sort-on [(- who)]
+  ;;ifelse count top > num_trucks [report n-of num_trucks top] [report top]
+  let top sublist (sort-on [table:get _forecast t] stations) 0 num_trucks ;; _forecast is hour : demand
+  report turtle-set top
+end
+
+;; time calculator
+to-report get_time
+  let factor 1
+  if ticks > 1440 [set factor floor (ticks / 1440)]
+  report floor ((ticks mod (factor * 1440)) / 60)
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
@@ -644,6 +793,49 @@ TEXTBOX
 Note: Each dot represents a bike docking station. Red means the # bikes < 3. Blue means the # docks < 3. 
 11
 0.0
+1
+
+SWITCH
+380
+115
+487
+148
+rebalance
+rebalance
+0
+1
+-1000
+
+SLIDER
+510
+120
+682
+153
+num_trucks
+num_trucks
+1
+20
+3.0
+1
+1
+NIL
+HORIZONTAL
+
+BUTTON
+5
+50
+75
+83
+go (2000)
+repeat 2000 [go]
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
 1
 
 @#$#@#$#@
