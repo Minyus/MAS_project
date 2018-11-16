@@ -22,7 +22,8 @@ tcap
 cargo
 pick
 drop
-quantity
+pckqty
+drpqty
 ]
 
 globals [
@@ -444,7 +445,7 @@ to pickup_bikes
   let tmp (tcap - cargo) ;; actual capacity of truck
   let sav [_simulated_num_bikes_available] of pick ;; num bikes available for pickup
   let truquant 0
-  ifelse sav >= quantity [set truquant quantity] [set truquant sav] ;; set quantity for pickup
+  ifelse sav >= pckqty [set truquant pckqty] [set truquant sav] ;; set quantity for pickup
 
   ;; update truck cargo as well as station avaiable bikes and docks
   ifelse tmp >= truquant
@@ -472,7 +473,8 @@ to dropoff_bikes
   move-to drop
   let sav [_capacity - _simulated_num_bikes_available] of drop ;; actual capacity to take in bikes
   let truquant 0
-  ifelse sav >= cargo [set truquant cargo] [set truquant sav] ;; set quantity for dropoff
+  let quant min (sentence drpqty cargo)
+  ifelse sav >= quant [set truquant quant] [set truquant sav] ;; set quantity for dropoff
 
   ;; update station available bikes and docks
   ask drop
@@ -490,7 +492,7 @@ to set_pickup_destination
 
   ;; assign closest truck for each supply station
   foreach [who] of trucks [? -> let st_id [who] of station_set with-min[distance truck ?]
-    ask truck ? [set pick station first st_id set quantity ceiling (([table:get _forecast t] of station first st_id) * -1)]
+    ask truck ? [set pick station first st_id set pckqty ceiling ([table:get _forecast t] of station first st_id)]
     ask station_set [ set station_set station_set with[self != station first st_id]]
   ]
 end
@@ -502,7 +504,7 @@ to set_dropoff_destination
 
   ;; assign closest truck for each demand station
   foreach [who] of trucks [? -> let st_id [who] of station_set with-min[distance truck ?]
-    ask truck ? [set drop station first st_id set quantity ceiling (([table:get _forecast t] of station first st_id) * -1)]
+    ask truck ? [set drop station first st_id set drpqty ceiling (([table:get _forecast t] of station first st_id) * -1)]
     ask station_set [ set station_set station_set with[self != station first st_id]]
   ]
 end
@@ -517,7 +519,7 @@ end
 to-report get_supply [t]
   ;;let top stations with-max[table:get _forecast t] ;;sort-on [(- who)]
   ;;ifelse count top > num_trucks [report n-of num_trucks top] [report top]
-  let top sublist (sort-on [table:get _forecast t] stations) 0 num_trucks ;; _forecast is hour : demand
+  let top sublist (sort-on [(- table:get _forecast t)] stations) 0 num_trucks ;; _forecast is hour : demand
   report turtle-set top
 end
 
@@ -815,28 +817,11 @@ num_trucks
 num_trucks
 1
 20
-3.0
+5.0
 1
 1
 NIL
 HORIZONTAL
-
-BUTTON
-5
-50
-75
-83
-go (2000)
-repeat 2000 [go]
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
 
 @#$#@#$#@
 ## WHAT IS IT?
@@ -1191,6 +1176,50 @@ NetLogo 6.0.4
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
+<experiments>
+  <experiment name="number of trucks-norebalance" repetitions="10" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <metric>simulated_out_of_bikes_count</metric>
+    <metric>simulated_out_of_docks_count</metric>
+    <metric>sim_elapsed_hours</metric>
+    <enumeratedValueSet variable="rebalance">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sim_timestep_minutes">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="num_trucks">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="days_to_simulate">
+      <value value="7"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="number of trucks-rebalance" repetitions="10" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <metric>simulated_out_of_bikes_count</metric>
+    <metric>simulated_out_of_docks_count</metric>
+    <metric>sim_elapsed_hours</metric>
+    <enumeratedValueSet variable="rebalance">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sim_timestep_minutes">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="num_trucks">
+      <value value="1"/>
+      <value value="2"/>
+      <value value="3"/>
+      <value value="4"/>
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="days_to_simulate">
+      <value value="7"/>
+    </enumeratedValueSet>
+  </experiment>
+</experiments>
 @#$#@#$#@
 @#$#@#$#@
 default
