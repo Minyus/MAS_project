@@ -449,12 +449,12 @@ to pickup_bikes
 
   ;; update truck cargo as well as station avaiable bikes and docks
   ifelse tmp >= truquant
-    [ set cargo truquant
+    [ set cargo (cargo + truquant)
     ask pick
     [set _simulated_num_bikes_available (_simulated_num_bikes_available - truquant)
      set _simulated_num_docks_available (_simulated_num_docks_available + truquant)]
     ]
-    [set cargo tmp
+    [set cargo (cargo + tmp)
     ask pick
       [set _simulated_num_bikes_available (_simulated_num_bikes_available - tmp)
        set _simulated_num_docks_available (_simulated_num_docks_available + tmp)]
@@ -817,7 +817,7 @@ num_trucks
 num_trucks
 1
 20
-5.0
+10.0
 1
 1
 NIL
