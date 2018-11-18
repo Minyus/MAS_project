@@ -24,6 +24,8 @@ pick
 drop
 pckqty
 drpqty
+traveling_speed_to_pick
+traveling_speed_to_drop
 ]
 
 globals [
@@ -191,15 +193,9 @@ to go
   set sim_timestep_counter ( sim_timestep_counter + 1 )  ;; increment the counter
   if sim_timestep_counter >= sim_timestep_to_panel_timestep [ set sim_timestep_counter 0 ]
   user-trip-submodel
-  ;;rebalancing-submodel
   update-station-status
   ;; rebalancing animation and steps toggled by rebalance global switch
-  if rebalance [
-    if sim_timestep_counter > 0 and sim_timestep_counter < 20 [ ask trucks [face pick fd (distance pick) / 19] ]
-    if sim_timestep_counter = 20 [pickup_bikes]
-    if sim_timestep_counter > 20 and sim_timestep_counter < 50 [ ask trucks [face drop fd (distance drop) / 29] ]
-    if sim_timestep_counter = 50 [dropoff_bikes]
-  ]
+  if rebalance? [ rebalancing-submodel ]
   tick
   set sim_elapsed_hours ( ticks / sim_timestep_to_panel_timestep )
   set sim_elapsed_days ( sim_elapsed_hours / 24 )
@@ -215,9 +211,9 @@ to update-trucks
     create-trucks num_trucks [
       set tcap 20
       set cargo 0
-      set color green
+      ; set color green ;; disabled changing color
       set shape "car"
-      set size 1
+      set size 0.5
       move-to station 63
       set_pickup_destination ;; set initial pickup point
       set_dropoff_destination ;; set initial dropoff point
@@ -225,7 +221,7 @@ to update-trucks
   ]
   [
     ;; update pickup and dropoff points at every time step 0
-    if rebalance [
+    if rebalance? [
       set_pickup_destination
       set_dropoff_destination
     ]
@@ -434,9 +430,22 @@ end
 
 ;;; Rabalancing Submodel follows:
 
-;;to rebalancing-submodel
-  ;; To do: add rebalancing submodel here.
-;;end
+to rebalancing-submodel
+    if sim_timestep_counter = 1
+    [ ask trucks [
+      set traveling_speed_to_pick ( (distance pick) / 20 )
+      set color green
+    ] ]
+    if sim_timestep_counter >= 1 and sim_timestep_counter <= 20 [ ask trucks [ face pick fd traveling_speed_to_pick ] ]
+    if sim_timestep_counter = 20 [pickup_bikes]
+    if sim_timestep_counter = 31
+    [ ask trucks [
+      set traveling_speed_to_drop ( (distance drop) / 20 )
+      set color cyan
+    ] ]
+    if sim_timestep_counter >= 31 and sim_timestep_counter <= 50 [ ask trucks [ face drop fd traveling_speed_to_drop ] ]
+    if sim_timestep_counter = 50 [dropoff_bikes]
+end
 
 ;; action to pickup bikes from pickup point and update values
 to pickup_bikes
@@ -464,7 +473,7 @@ to pickup_bikes
 ;;       set _simulated_num_docks_available (_simulated_num_docks_available + truquant)]
 ;;      [set _simulated_num_bikes_available (_simulated_num_bikes_available - tmp)
 ;;       set _simulated_num_docks_available (_simulated_num_docks_available + tmp)] ]
-  set color cyan ;; color for dropping off
+  ; set color cyan ;; color for dropping off
   ]
 end
 
@@ -481,7 +490,7 @@ to dropoff_bikes
     [set _simulated_num_bikes_available (_simulated_num_bikes_available + truquant)
      set _simulated_num_docks_available (_simulated_num_docks_available - truquant)]
   set cargo (cargo - truquant) ;; update truck cargo
-  set color green ;; color for pickup
+  ; set color green ;; color for pickup ;;
   ]
 end
 
@@ -531,21 +540,21 @@ to-report get_time
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
--5
-110
-358
-474
+0
+10
+578
+589
 -1
 -1
-27.31
+43.85
 1
 8
 1
 1
 1
 0
-1
-1
+0
+0
 1
 -6
 6
@@ -558,9 +567,9 @@ ticks
 30.0
 
 BUTTON
+580
 10
-10
-73
+643
 43
 NIL
 setup
@@ -575,9 +584,9 @@ NIL
 1
 
 BUTTON
-80
+650
 10
-205
+775
 43
 go once (1 time step)
 go
@@ -592,9 +601,9 @@ NIL
 1
 
 BUTTON
-220
+780
 10
-307
+867
 43
 go forever
 go
@@ -610,16 +619,16 @@ NIL
 
 OUTPUT
 0
-530
+610
 990
 680
 11
 
 PLOT
-370
-370
-790
-514
+580
+455
+800
+599
 simulated cumulative out of bikes and docks count
 NIL
 NIL
@@ -635,32 +644,10 @@ PENS
 "out of docks" 1.0 0 -13345367 true "" "plot simulated_out_of_docks_count"
 
 MONITOR
-370
-10
-485
-55
-NIL
-panel_data_pointer
-17
-1
-11
-
-MONITOR
-490
-10
-607
-55
-NIL
-panel_data_length
-17
-1
-11
-
-MONITOR
-490
-65
-610
-110
+700
+175
+820
+220
 time to
 time
 17
@@ -668,10 +655,10 @@ time
 11
 
 MONITOR
-370
-65
-490
-110
+580
+175
+700
+220
 time from
 time_previous
 17
@@ -679,10 +666,10 @@ time_previous
 11
 
 MONITOR
-370
-160
-487
-205
+580
+280
+697
+325
 number of stations
 count stations
 17
@@ -690,10 +677,10 @@ count stations
 11
 
 PLOT
-370
-250
-575
-370
+580
+330
+800
+450
 histogram
 NIL
 NIL
@@ -708,10 +695,10 @@ PENS
 "default" 1.0 0 -16777216 true "" "histogram [ _simulated_num_bikes_available ] of stations"
 
 MONITOR
-800
-380
-977
-425
+805
+460
+965
+505
 NIL
 simulated_out_of_bikes_count
 17
@@ -719,10 +706,10 @@ simulated_out_of_bikes_count
 11
 
 MONITOR
-800
-450
-982
-495
+805
+535
+970
+580
 NIL
 simulated_out_of_docks_count
 17
@@ -730,10 +717,10 @@ simulated_out_of_docks_count
 11
 
 MONITOR
-370
-205
-555
-250
+705
+280
+890
+325
 total number of bikes
 sum [ _simulated_num_bikes_available ] of stations
 17
@@ -741,9 +728,9 @@ sum [ _simulated_num_bikes_available ] of stations
 11
 
 CHOOSER
-80
+580
 50
-200
+700
 95
 sim_timestep_minutes
 sim_timestep_minutes
@@ -751,10 +738,10 @@ sim_timestep_minutes
 0
 
 SLIDER
-215
-60
-365
-93
+720
+55
+870
+88
 days_to_simulate
 days_to_simulate
 1
@@ -766,10 +753,10 @@ days
 HORIZONTAL
 
 MONITOR
-615
-65
-735
-110
+580
+220
+700
+265
 NIL
 sim_elapsed_hours
 0
@@ -777,10 +764,10 @@ sim_elapsed_hours
 11
 
 MONITOR
-735
-65
-850
-110
+700
+220
+815
+265
 NIL
 sim_elapsed_days
 0
@@ -788,31 +775,31 @@ sim_elapsed_days
 11
 
 TEXTBOX
-20
-480
-340
-536
+5
+595
+525
+630
 Note: Each dot represents a bike docking station. Red means the # bikes < 3. Blue means the # docks < 3. 
 11
 0.0
 1
 
 SWITCH
-380
+580
 115
-487
+692
 148
-rebalance
-rebalance
+rebalance?
+rebalance?
 0
 1
 -1000
 
 SLIDER
-510
-120
-682
-153
+695
+115
+867
+148
 num_trucks
 num_trucks
 1
@@ -822,6 +809,17 @@ num_trucks
 1
 NIL
 HORIZONTAL
+
+MONITOR
+825
+175
+957
+220
+NIL
+sim_timestep_counter
+17
+1
+11
 
 @#$#@#$#@
 ## WHAT IS IT?
