@@ -83,6 +83,9 @@ globals [
   sim_timestep_to_panel_timestep
   sim_elapsed_hours
   sim_elapsed_days
+
+  sim_num_stations_with_bikes_below_threshold
+  sim_num_stations_with_docks_below_threshold
 ]
 
 
@@ -321,9 +324,11 @@ end
 to  update-station-status
   ask stations [
     set color white
-    if _simulated_num_bikes_available < 3 [ set color red ]
-    if _simulated_num_docks_available < 3 [ set color blue ]
+    if _simulated_num_bikes_available < threshold [ set color red ]
+    if _simulated_num_docks_available < threshold [ set color blue ]
   ]
+  set sim_num_stations_with_bikes_below_threshold count stations with [ color = red ]
+  set sim_num_stations_with_docks_below_threshold count stations with [ color = blue ]
 end
 
 ;;; User Trip Submodel follows:
@@ -626,10 +631,10 @@ OUTPUT
 
 PLOT
 580
-455
-800
-599
-simulated cumulative out of bikes and docks count
+460
+765
+604
+# out-of-bikes&docks
 NIL
 NIL
 0.0
@@ -645,9 +650,9 @@ PENS
 
 MONITOR
 700
-175
+155
 820
-220
+200
 time to
 time
 17
@@ -656,9 +661,9 @@ time
 
 MONITOR
 580
-175
+155
 700
-220
+200
 time from
 time_previous
 17
@@ -667,9 +672,9 @@ time_previous
 
 MONITOR
 580
-280
+245
 697
-325
+290
 number of stations
 count stations
 17
@@ -677,10 +682,10 @@ count stations
 11
 
 PLOT
-580
-330
-800
-450
+835
+200
+995
+320
 histogram
 NIL
 NIL
@@ -695,10 +700,10 @@ PENS
 "default" 1.0 0 -16777216 true "" "histogram [ _simulated_num_bikes_available ] of stations"
 
 MONITOR
-805
-460
-965
-505
+770
+480
+935
+525
 NIL
 simulated_out_of_bikes_count
 17
@@ -706,10 +711,10 @@ simulated_out_of_bikes_count
 11
 
 MONITOR
-805
-535
-970
-580
+770
+530
+935
+575
 NIL
 simulated_out_of_docks_count
 17
@@ -717,10 +722,10 @@ simulated_out_of_docks_count
 11
 
 MONITOR
-705
-280
-890
-325
+700
+245
+825
+290
 total number of bikes
 sum [ _simulated_num_bikes_available ] of stations
 17
@@ -754,9 +759,9 @@ HORIZONTAL
 
 MONITOR
 580
-220
+200
 700
-265
+245
 NIL
 sim_elapsed_hours
 0
@@ -765,9 +770,9 @@ sim_elapsed_hours
 
 MONITOR
 700
-220
-815
-265
+200
+825
+245
 NIL
 sim_elapsed_days
 0
@@ -775,20 +780,20 @@ sim_elapsed_days
 11
 
 TEXTBOX
-5
+10
 595
-525
-630
-Note: Each dot represents a bike docking station. Red means the # bikes < 3. Blue means the # docks < 3. 
+585
+613
+Each dot represents a bike station. Red means the # bikes < threshold. Blue means the # docks < threshold. 
 11
 0.0
 1
 
 SWITCH
-580
-115
-692
-148
+585
+100
+697
+133
 rebalance?
 rebalance?
 0
@@ -796,10 +801,10 @@ rebalance?
 -1000
 
 SLIDER
-695
-115
-867
-148
+700
+100
+872
+133
 num_trucks
 num_trucks
 1
@@ -812,14 +817,70 @@ HORIZONTAL
 
 MONITOR
 825
-175
+155
 957
-220
+200
 NIL
 sim_timestep_counter
 17
 1
 11
+
+SLIDER
+765
+325
+880
+358
+threshold
+threshold
+1
+10
+3.0
+1
+1
+NIL
+HORIZONTAL
+
+MONITOR
+765
+360
+1005
+405
+NIL
+sim_num_stations_with_bikes_below_threshold
+17
+1
+11
+
+MONITOR
+765
+405
+1005
+450
+NIL
+sim_num_stations_with_docks_below_threshold
+17
+1
+11
+
+PLOT
+580
+325
+765
+455
+# stn bikes&docks < th
+NIL
+NIL
+0.0
+10.0
+0.0
+10.0
+true
+false
+"" ""
+PENS
+"default" 1.0 0 -2674135 true "" "plot sim_num_stations_with_bikes_below_threshold"
+"pen-1" 1.0 0 -13345367 true "" "plot sim_num_stations_with_docks_below_threshold"
 
 @#$#@#$#@
 ## WHAT IS IT?
