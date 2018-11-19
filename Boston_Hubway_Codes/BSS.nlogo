@@ -2,30 +2,33 @@ extensions [ csv table ]
 breed [ stations station]
 breed [ trucks truck]
 stations-own [
-_simulated_num_bikes_available
-_simulated_num_docks_available
+  _simulated_num_bikes_available
+  _simulated_num_docks_available
 
-_station_id
-_station_latitude
-_station_longitude
-_capacity
-_initial_num_bikes_available
-_total_departure_count
-_total_arrival_count
-_departure_cumulative_relative_frequency
-_arrival_cumulative_relative_frequency
-_forecast
+  _station_id
+  _station_latitude
+  _station_longitude
+  _capacity
+  _initial_num_bikes_available
+  _total_departure_count
+  _total_arrival_count
+  _departure_cumulative_relative_frequency
+  _arrival_cumulative_relative_frequency
+  _forecast
 ]
 
 trucks-own [
-tcap
-cargo
-pick
-drop
-pckqty
-drpqty
-traveling_speed_to_pick
-traveling_speed_to_drop
+  tcap
+  cargo
+  pick
+  drop
+  pckqty
+  drpqty
+  traveling_speed_to_pick
+  traveling_speed_to_drop
+  state
+  pick_counter
+  drop_counter
 ]
 
 globals [
@@ -86,6 +89,11 @@ globals [
 
   sim_num_stations_with_bikes_below_threshold
   sim_num_stations_with_docks_below_threshold
+
+  t_hour
+  station_set_to_pick
+  station_set_to_drop
+  sim_timestep_minutes
 ]
 
 
@@ -98,6 +106,7 @@ to setup
   set time_step_completed? false
   set panel_data_length 0
   set-default-shape stations "dot"
+  set sim_timestep_minutes 1 ;; Set timestep to 1 minute (1 tick = 1 minute)
   setup-table
   setup-panel
   output-print ( word "[" date-and-time "] Set up complete." )
@@ -192,13 +201,15 @@ end
 
 to go
   set sim_timestep_to_panel_timestep ( 60 / sim_timestep_minutes )
-  if sim_timestep_counter = 0 [ update-station-agents update-trucks] ;; initialize trucks on top of stations
+  ifelse sim_timestep_counter = 0
+  [ update-station-agents update-trucks] ;; initialize trucks on top of stations
+  [ if wait_for_demo? [ wait wait_time ] ]
   set sim_timestep_counter ( sim_timestep_counter + 1 )  ;; increment the counter
   if sim_timestep_counter >= sim_timestep_to_panel_timestep [ set sim_timestep_counter 0 ]
   user-trip-submodel
   update-station-status
   ;; rebalancing animation and steps toggled by rebalance global switch
-  if rebalance? [ rebalancing-submodel ]
+  rebalancing-submodel
   tick
   set sim_elapsed_hours ( ticks / sim_timestep_to_panel_timestep )
   set sim_elapsed_days ( sim_elapsed_hours / 24 )
@@ -210,25 +221,25 @@ end
 
 to update-trucks
   ;; initialize trucks
-  ifelse not any? trucks [
-    create-trucks num_trucks [
-      set tcap 20
-      set cargo 0
-      ; set color green ;; disabled changing color
-      set shape "car"
-      set size 0.5
-      move-to station 63
-      set_pickup_destination ;; set initial pickup point
-      set_dropoff_destination ;; set initial dropoff point
+  if rebalancing_submodel != "Disable" [
+    if not any? trucks [
+      create-trucks num_trucks [
+        set tcap 20
+        set cargo 0
+        set shape "car"
+        set size 0.5
+        move-to station 63
+        set traveling_speed_to_pick truck_traveling_speed
+        set traveling_speed_to_drop truck_traveling_speed
+        set state "waiting for pick up"
+      ]
     ]
-  ]
-  [
-    ;; update pickup and dropoff points at every time step 0
-    if rebalance? [
-      set_pickup_destination
-      set_dropoff_destination
-    ]
-  ]
+    ;; read forecast values to update pickup and dropoff points at every hour
+    set t_hour (get_time + 1) ;; next time step
+    if t_hour = 24 [set t_hour 0]
+    set station_set_to_pick get_supply t_hour ;; get station-set with most supply at next time step
+    set station_set_to_drop get_demand t_hour ;; get station-set with most demand at next time step
+ ]
 end
 
 to update-station-agents
@@ -417,7 +428,7 @@ to-report nth-closest-station [ _station_id_source _n ]
   ;output-print _sid_positions
   let _rank_positions positions _n interstation_distance_rank_list
   ;output-print word _station_id_source _n
-  let _position first ( intersect _sid_positions _rank_positions ) ;; first, last, one-of
+  let _position first ( intersect _sid_positions _rank_positions ) ;; same values for first, last, one-of
   let sid item _position station_id_target_list
   report sid
 end
@@ -436,26 +447,86 @@ end
 ;;; Rabalancing Submodel follows:
 
 to rebalancing-submodel
-    if sim_timestep_counter = 1
-    [ ask trucks [
+
+  if rebalancing_submodel = "Centralized" [
+  ask trucks [
+  if sim_timestep_counter = 1
+    [
+      set_pickup_destination [ who ] of self
       set traveling_speed_to_pick ( (distance pick) / 20 )
       set color green
-    ] ]
-    if sim_timestep_counter >= 1 and sim_timestep_counter <= 20 [ ask trucks [ face pick fd traveling_speed_to_pick ] ]
-    if sim_timestep_counter = 20 [pickup_bikes]
-    if sim_timestep_counter = 31
-    [ ask trucks [
-      set traveling_speed_to_drop ( (distance drop) / 20 )
-      set color cyan
-    ] ]
-    if sim_timestep_counter >= 31 and sim_timestep_counter <= 50 [ ask trucks [ face drop fd traveling_speed_to_drop ] ]
-    if sim_timestep_counter = 50 [dropoff_bikes]
+     ]
+    if sim_timestep_counter >= 1 and sim_timestep_counter <= 20 [ face pick fd traveling_speed_to_pick ]
+  if sim_timestep_counter = 20 [ pickup_bikes ]
+  if sim_timestep_counter = 31
+  [
+    set_dropoff_destination [ who ] of self
+    set traveling_speed_to_drop ( (distance drop) / 20 )
+    set color cyan
+  ]
+  if sim_timestep_counter >= 31 and sim_timestep_counter <= 50 [ face drop fd traveling_speed_to_drop ]
+  if sim_timestep_counter = 50 [ dropoff_bikes  ]
+  ]
+  ]
+
+  if rebalancing_submodel = "Decentralized" [
+    ask trucks [
+      if state = "waiting for pick up" [
+        if any? station_set_to_pick [
+          set_pickup_destination [ who ] of self
+          face pick
+          set state "traveling to pick up"
+          set color green
+        ]
+      ]
+      if state = "traveling to pick up" [
+        ifelse distance pick <= traveling_speed_to_pick
+        [
+          move-to pick
+          set state "picking up"
+        ]
+        [ fd traveling_speed_to_pick ]
+      ]
+      if state = "picking up" [
+        ifelse pick_counter >= timesteps_to_pick ;; minutes to pick up
+        [
+          pickup_bikes
+          set pick_counter 0
+          set state "waiting for drop off"
+        ]
+        [ set pick_counter ( pick_counter + 1 ) ] ;; increment conter
+      ]
+      if state = "waiting for drop off" [
+        if any? station_set_to_drop [
+          set_dropoff_destination [ who ] of self
+          face drop
+          set state "traeling to drop off"
+          set color cyan
+        ]
+      ]
+      if state = "traeling to drop off" [
+        ifelse distance drop <= traveling_speed_to_drop
+        [
+          move-to drop
+          set state "dropping off"
+        ]
+        [ fd traveling_speed_to_drop ]
+      ]
+      if state = "dropping off" [
+        ifelse drop_counter >= timesteps_to_drop ;; minutes to drop off
+        [
+          dropoff_bikes
+          set drop_counter 0
+          set state "waiting for pick up"
+        ]
+        [ set drop_counter ( drop_counter + 1 ) ] ;; increment conter
+      ]
+    ]
+  ]
 end
 
 ;; action to pickup bikes from pickup point and update values
 to pickup_bikes
-  ask trucks [
-  move-to pick
   let tmp (tcap - cargo) ;; actual capacity of truck
   let sav [_simulated_num_bikes_available] of pick ;; num bikes available for pickup
   let truquant 0
@@ -473,18 +544,10 @@ to pickup_bikes
       [set _simulated_num_bikes_available (_simulated_num_bikes_available - tmp)
        set _simulated_num_docks_available (_simulated_num_docks_available + tmp)]
     ]
-;;  ask pick [ifelse tmp >= truquant
-;;      [set _simulated_num_bikes_available (_simulated_num_bikes_available - truquant)
-;;       set _simulated_num_docks_available (_simulated_num_docks_available + truquant)]
-;;      [set _simulated_num_bikes_available (_simulated_num_bikes_available - tmp)
-;;       set _simulated_num_docks_available (_simulated_num_docks_available + tmp)] ]
-  ; set color cyan ;; color for dropping off
-  ]
+
 end
 
 to dropoff_bikes
-  ask trucks [
-  move-to drop
   let sav [_capacity - _simulated_num_bikes_available] of drop ;; actual capacity to take in bikes
   let truquant 0
   let quant min (sentence drpqty cargo)
@@ -495,32 +558,23 @@ to dropoff_bikes
     [set _simulated_num_bikes_available (_simulated_num_bikes_available + truquant)
      set _simulated_num_docks_available (_simulated_num_docks_available - truquant)]
   set cargo (cargo - truquant) ;; update truck cargo
-  ; set color green ;; color for pickup ;;
-  ]
+
 end
 
-to set_pickup_destination
-  let t (get_time + 1) ;; next time step
-  if t = 24 [set t 0]
-  let station_set get_supply t ;; get station-set with most supply at next time step
-
+to set_pickup_destination [?]
   ;; assign closest truck for each supply station
-  foreach [who] of trucks [? -> let st_id [who] of station_set with-min[distance truck ?]
-    ask truck ? [set pick station first st_id set pckqty ceiling ([table:get _forecast t] of station first st_id)]
-    ask station_set [ set station_set station_set with[self != station first st_id]]
-  ]
+    let st_id [who] of station_set_to_pick with-min[distance truck ?]
+    ask truck ? [set pick station first st_id set pckqty ceiling ([table:get _forecast t_hour] of station first st_id)]
+    ask station_set_to_pick [ set station_set_to_pick station_set_to_pick with[self != station first st_id]]
+
 end
 
-to set_dropoff_destination
-  let t (get_time + 1) ;; next time step
-  if t = 24 [set t 0]
-  let station_set get_demand t ;; get station-set with most demand at next time step
-
+to set_dropoff_destination [?]
   ;; assign closest truck for each demand station
-  foreach [who] of trucks [? -> let st_id [who] of station_set with-min[distance truck ?]
-    ask truck ? [set drop station first st_id set drpqty ceiling (([table:get _forecast t] of station first st_id) * -1)]
-    ask station_set [ set station_set station_set with[self != station first st_id]]
-  ]
+  let st_id [who] of station_set_to_drop with-min[distance truck ?]
+    ask truck ? [set drop station first st_id set drpqty ceiling (([table:get _forecast t_hour] of station first st_id) * -1)]
+    ask station_set_to_drop [ set station_set_to_drop station_set_to_drop with[self != station first st_id]]
+
 end
 
 to-report get_demand [t]
@@ -600,16 +654,16 @@ NIL
 T
 OBSERVER
 NIL
-G
+NIL
 NIL
 NIL
 1
 
 BUTTON
-780
-10
-867
-43
+580
+140
+667
+173
 go forever
 go
 T
@@ -617,7 +671,7 @@ T
 T
 OBSERVER
 NIL
-NIL
+G
 NIL
 NIL
 1
@@ -631,7 +685,7 @@ OUTPUT
 
 PLOT
 580
-460
+484
 765
 604
 # out-of-bikes&docks
@@ -649,10 +703,10 @@ PENS
 "out of docks" 1.0 0 -13345367 true "" "plot simulated_out_of_docks_count"
 
 MONITOR
-700
-155
-820
-200
+705
+215
+825
+260
 time to
 time
 17
@@ -660,10 +714,10 @@ time
 11
 
 MONITOR
-580
-155
-700
-200
+585
+215
+705
+260
 time from
 time_previous
 17
@@ -671,39 +725,21 @@ time_previous
 11
 
 MONITOR
-580
-245
-697
-290
+585
+305
+705
+350
 number of stations
 count stations
 17
 1
 11
 
-PLOT
-835
-200
-995
-320
-histogram
-NIL
-NIL
-0.0
-10.0
-0.0
-10.0
-true
-false
-"" "set-plot-x-range 0 30\nset-plot-y-range 0 20\nset-histogram-num-bars 20"
-PENS
-"default" 1.0 0 -16777216 true "" "histogram [ _simulated_num_bikes_available ] of stations"
-
 MONITOR
-770
-480
-935
-525
+765
+495
+930
+540
 NIL
 simulated_out_of_bikes_count
 17
@@ -711,10 +747,10 @@ simulated_out_of_bikes_count
 11
 
 MONITOR
-770
-530
-935
-575
+765
+540
+930
+585
 NIL
 simulated_out_of_docks_count
 17
@@ -722,31 +758,21 @@ simulated_out_of_docks_count
 11
 
 MONITOR
-700
-245
+705
+305
 825
-290
+350
 total number of bikes
 sum [ _simulated_num_bikes_available ] of stations
 17
 1
 11
 
-CHOOSER
-580
-50
-700
-95
-sim_timestep_minutes
-sim_timestep_minutes
-1 2 5 10 30 60
-0
-
 SLIDER
-720
-55
-870
-88
+670
+140
+820
+173
 days_to_simulate
 days_to_simulate
 1
@@ -758,10 +784,10 @@ days
 HORIZONTAL
 
 MONITOR
-580
-200
-700
-245
+585
+260
+705
+305
 NIL
 sim_elapsed_hours
 0
@@ -769,10 +795,10 @@ sim_elapsed_hours
 11
 
 MONITOR
-700
-200
+705
+260
 825
-245
+305
 NIL
 sim_elapsed_days
 0
@@ -789,27 +815,16 @@ Each dot represents a bike station. Red means the # bikes < threshold. Blue mean
 0.0
 1
 
-SWITCH
-585
-100
-697
-133
-rebalance?
-rebalance?
-0
-1
--1000
-
 SLIDER
-700
-100
-872
-133
+730
+50
+845
+83
 num_trucks
 num_trucks
 1
 20
-10.0
+5.0
 1
 1
 NIL
@@ -817,9 +832,9 @@ HORIZONTAL
 
 MONITOR
 825
-155
+215
 957
-200
+260
 NIL
 sim_timestep_counter
 17
@@ -828,9 +843,9 @@ sim_timestep_counter
 
 SLIDER
 765
-325
+355
 880
-358
+388
 threshold
 threshold
 1
@@ -843,9 +858,9 @@ HORIZONTAL
 
 MONITOR
 765
-360
+390
 1005
-405
+435
 NIL
 sim_num_stations_with_bikes_below_threshold
 17
@@ -854,9 +869,9 @@ sim_num_stations_with_bikes_below_threshold
 
 MONITOR
 765
-405
+435
 1005
-450
+480
 NIL
 sim_num_stations_with_docks_below_threshold
 17
@@ -865,9 +880,9 @@ sim_num_stations_with_docks_below_threshold
 
 PLOT
 580
-325
+355
 765
-455
+480
 # stn bikes&docks < th
 NIL
 NIL
@@ -881,6 +896,87 @@ false
 PENS
 "default" 1.0 0 -2674135 true "" "plot sim_num_stations_with_bikes_below_threshold"
 "pen-1" 1.0 0 -13345367 true "" "plot sim_num_stations_with_docks_below_threshold"
+
+CHOOSER
+580
+50
+727
+95
+rebalancing_submodel
+rebalancing_submodel
+"Disable" "Centralized" "Decentralized"
+2
+
+SLIDER
+580
+100
+735
+133
+truck_traveling_speed
+truck_traveling_speed
+0.01
+1
+0.2
+0.01
+1
+NIL
+HORIZONTAL
+
+SLIDER
+735
+100
+880
+133
+timesteps_to_pick
+timesteps_to_pick
+1
+10
+5.0
+1
+1
+ticks
+HORIZONTAL
+
+SLIDER
+880
+100
+1025
+133
+timesteps_to_drop
+timesteps_to_drop
+1
+10
+5.0
+1
+1
+ticks
+HORIZONTAL
+
+SWITCH
+580
+175
+722
+208
+wait_for_demo?
+wait_for_demo?
+0
+1
+-1000
+
+SLIDER
+725
+175
+855
+208
+wait_time
+wait_time
+0
+1
+0.1
+0.1
+1
+sec
+HORIZONTAL
 
 @#$#@#$#@
 ## WHAT IS IT?
