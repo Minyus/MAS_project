@@ -448,7 +448,7 @@ end
 
 to rebalancing-submodel
 
-  if rebalancing_submodel = "Centralized" [
+  if rebalancing_submodel = "Synchronized" [
   ask trucks [
   if sim_timestep_counter = 1
     [
@@ -469,7 +469,7 @@ to rebalancing-submodel
   ]
   ]
 
-  if rebalancing_submodel = "Decentralized" [
+  if rebalancing_submodel = "Asynchronized" [
     ask trucks [
       if state = "waiting for pick up" [
         if any? station_set_to_pick [
@@ -904,7 +904,7 @@ CHOOSER
 95
 rebalancing_submodel
 rebalancing_submodel
-"Disable" "Centralized" "Decentralized"
+"Disable" "Synchronized" "Asynchronized"
 2
 
 SLIDER
