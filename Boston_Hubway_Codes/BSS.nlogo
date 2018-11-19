@@ -94,6 +94,10 @@ globals [
   station_set_to_pick
   station_set_to_drop
   sim_timestep_minutes
+  num_travels_to_pick
+  num_travels_to_drop
+  num_travels_to_pick_per_truck_hour
+  num_travels_to_drop_per_truck_hour
 ]
 
 
@@ -166,7 +170,6 @@ to setup-panel
       set vals_list first panel_data
       set vals_list_length length vals_list
     go
-
       ]
 end
 
@@ -213,6 +216,8 @@ to go
   tick
   set sim_elapsed_hours ( ticks / sim_timestep_to_panel_timestep )
   set sim_elapsed_days ( sim_elapsed_hours / 24 )
+  set num_travels_to_pick_per_truck_hour ( num_travels_to_pick / ( num_trucks * sim_elapsed_hours ) )
+  set num_travels_to_drop_per_truck_hour ( num_travels_to_drop / ( num_trucks * sim_elapsed_hours ) )
   if sim_elapsed_days >= days_to_simulate [
     output-print ( word "[" date-and-time "] Simulation of " sim_elapsed_days " days completed." )
     stop
@@ -472,7 +477,7 @@ to rebalancing-submodel
   if rebalancing_submodel = "Asynchronized" [
     ask trucks [
       if state = "waiting for pick up" [
-        if any? station_set_to_pick [
+        if not empty? station_set_to_pick [
           set_pickup_destination [ who ] of self
           face pick
           set state "traveling to pick up"
@@ -497,7 +502,7 @@ to rebalancing-submodel
         [ set pick_counter ( pick_counter + 1 ) ] ;; increment conter
       ]
       if state = "waiting for drop off" [
-        if any? station_set_to_drop [
+        if not empty? station_set_to_drop [
           set_dropoff_destination [ who ] of self
           face drop
           set state "traeling to drop off"
@@ -544,7 +549,7 @@ to pickup_bikes
       [set _simulated_num_bikes_available (_simulated_num_bikes_available - tmp)
        set _simulated_num_docks_available (_simulated_num_docks_available + tmp)]
     ]
-
+  set num_travels_to_pick ( num_travels_to_pick + 1 ) ;; count up
 end
 
 to dropoff_bikes
@@ -558,37 +563,43 @@ to dropoff_bikes
     [set _simulated_num_bikes_available (_simulated_num_bikes_available + truquant)
      set _simulated_num_docks_available (_simulated_num_docks_available - truquant)]
   set cargo (cargo - truquant) ;; update truck cargo
-
+  set num_travels_to_drop ( num_travels_to_drop + 1 ) ;; count up
 end
 
 to set_pickup_destination [?]
   ;; assign closest truck for each supply station
-    let st_id [who] of station_set_to_pick with-min[distance truck ?]
+    let st_id [who] of ( turtle-set sublist station_set_to_pick 0 num_trucks ) with-min[distance truck ?] ;; closest among top num_trucks
     ask truck ? [set pick station first st_id set pckqty ceiling ([table:get _forecast t_hour] of station first st_id)]
-    ask station_set_to_pick [ set station_set_to_pick station_set_to_pick with[self != station first st_id]]
+    ; ask station_set_to_pick [ set station_set_to_pick station_set_to_pick with[self != station first st_id]]
+  set station_set_to_pick ( remove ( station first st_id ) station_set_to_pick )
 
 end
 
 to set_dropoff_destination [?]
   ;; assign closest truck for each demand station
-  let st_id [who] of station_set_to_drop with-min[distance truck ?]
+  let st_id [who] of ( turtle-set sublist station_set_to_drop 0 num_trucks ) with-min[distance truck ?] ;; closest among top num_trucks
     ask truck ? [set drop station first st_id set drpqty ceiling (([table:get _forecast t_hour] of station first st_id) * -1)]
-    ask station_set_to_drop [ set station_set_to_drop station_set_to_drop with[self != station first st_id]]
+    ; ask station_set_to_drop [ set station_set_to_drop station_set_to_drop with[self != station first st_id]]
+  set station_set_to_drop ( remove ( station first st_id ) station_set_to_drop )
 
 end
 
 to-report get_demand [t]
   ;;let top stations with-min[table:get _forecast t] ;;sort-on [who]
   ;;ifelse count top > num_trucks [report n-of num_trucks top] [report top]
-  let top sublist (sort-on [table:get _forecast t] stations) 0 num_trucks ;; _forecast is hour : demand
-  report turtle-set top
+  ; let top sublist (sort-on [table:get _forecast t] stations) 0 num_trucks ;; _forecast is hour : demand
+  ; report turtle-set top
+  let top (sort-on [table:get _forecast t] stations) ;; _forecast is hour : demand ;; removed sublist to allow multiple stations per truck
+  report top
 end
 
 to-report get_supply [t]
   ;;let top stations with-max[table:get _forecast t] ;;sort-on [(- who)]
   ;;ifelse count top > num_trucks [report n-of num_trucks top] [report top]
-  let top sublist (sort-on [(- table:get _forecast t)] stations) 0 num_trucks ;; _forecast is hour : demand
-  report turtle-set top
+  ; let top sublist (sort-on [(- table:get _forecast t)] stations) 0 num_trucks ;; _forecast is hour : demand
+  ; report turtle-set top
+  let top (sort-on [(- table:get _forecast t)] stations) ;; _forecast is hour : demand ;; removed sublist to allow multiple stations per truck
+  report top
 end
 
 ;; time calculator
@@ -910,20 +921,20 @@ rebalancing_submodel
 SLIDER
 580
 100
-735
+740
 133
 truck_traveling_speed
 truck_traveling_speed
-0.01
-1
+0.001
 0.2
-0.01
+0.056
+0.001
 1
 NIL
 HORIZONTAL
 
 SLIDER
-735
+740
 100
 880
 133
@@ -959,7 +970,7 @@ SWITCH
 208
 wait_for_demo?
 wait_for_demo?
-0
+1
 1
 -1000
 
@@ -972,11 +983,33 @@ wait_time
 wait_time
 0
 1
-0.1
-0.1
+0.05
+0.01
 1
 sec
 HORIZONTAL
+
+MONITOR
+825
+260
+1020
+305
+NIL
+num_travels_to_pick_per_truck_hour
+3
+1
+11
+
+MONITOR
+825
+305
+1020
+350
+NIL
+num_travels_to_drop_per_truck_hour
+3
+1
+11
 
 @#$#@#$#@
 ## WHAT IS IT?
