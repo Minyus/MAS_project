@@ -91,6 +91,8 @@ globals [
   sim_num_stations_with_docks_below_threshold
 
   t_hour
+  subsequent_station_set_to_pick
+  subsequent_station_set_to_drop
   station_set_to_pick
   station_set_to_drop
   sim_timestep_minutes
@@ -242,9 +244,19 @@ to update-trucks
     ;; read forecast values to update pickup and dropoff points at every hour
     set t_hour (get_time + 1) ;; next time step
     if t_hour = 24 [set t_hour 0]
-    set station_set_to_pick get_supply t_hour ;; get station-set with most supply at next time step
-    set station_set_to_drop get_demand t_hour ;; get station-set with most demand at next time step
+
+    set subsequent_station_set_to_pick get_supply t_hour ;; get station-set with most supply at next time step
+    set station_set_to_pick ( sublist subsequent_station_set_to_pick 0 num_trucks )
+    set subsequent_station_set_to_pick ( _tail_sublist subsequent_station_set_to_pick num_trucks )
+
+    set subsequent_station_set_to_drop get_demand t_hour ;; get station-set with most demand at next time step
+    set station_set_to_drop ( sublist subsequent_station_set_to_drop 0 num_trucks )
+    set subsequent_station_set_to_drop ( _tail_sublist subsequent_station_set_to_drop num_trucks )
  ]
+end
+
+to-report _tail_sublist [ _list _position ]
+  report sublist _list _position ( length _list )
 end
 
 to update-station-agents
@@ -477,12 +489,10 @@ to rebalancing-submodel
   if rebalancing_submodel = "Asynchronized" [
     ask trucks [
       if state = "waiting for pick up" [
-        if not empty? station_set_to_pick [
           set_pickup_destination [ who ] of self
           face pick
           set state "traveling to pick up"
           set color green
-        ]
       ]
       if state = "traveling to pick up" [
         ifelse distance pick <= traveling_speed_to_pick
@@ -502,12 +512,10 @@ to rebalancing-submodel
         [ set pick_counter ( pick_counter + 1 ) ] ;; increment conter
       ]
       if state = "waiting for drop off" [
-        if not empty? station_set_to_drop [
           set_dropoff_destination [ who ] of self
           face drop
           set state "traeling to drop off"
           set color cyan
-        ]
       ]
       if state = "traeling to drop off" [
         ifelse distance drop <= traveling_speed_to_drop
@@ -568,13 +576,14 @@ end
 
 to set_pickup_destination [?]
   ;; assign closest truck for each supply station
-  let station_set [] ;; set station_set depending on rebalancing_submodel
-  if rebalancing_submodel = "Synchronized" [
-    if length station_set_to_pick > num_trucks [ set station_set_to_pick sublist station_set_to_pick 0 num_trucks ]
-    set station_set station_set_to_pick
+
+  if empty? station_set_to_pick [
+    ;; load next round of stations (needed for only asynchronized truck submodel)
+    set station_set_to_pick ( sublist subsequent_station_set_to_pick 0 num_trucks)
+    set subsequent_station_set_to_pick ( _tail_sublist subsequent_station_set_to_pick num_trucks )
   ]
-  if rebalancing_submodel = "Asynchronized" [ set station_set ( sublist station_set_to_pick 0 num_trucks ) ]
-  let st_id [who] of ( turtle-set station_set ) with-min[distance truck ?] ;; closest among top num_trucks
+
+  let st_id [who] of ( turtle-set station_set_to_pick ) with-min[distance truck ?] ;; closest among top num_trucks
   ask truck ? [set pick station first st_id set pckqty ceiling ([table:get _forecast t_hour] of station first st_id)]
   ; ask station_set_to_pick [ set station_set_to_pick station_set_to_pick with[self != station first st_id]]
   set station_set_to_pick ( remove ( station first st_id ) station_set_to_pick ) ;; remove the selected station to avoid 2+ trucks goes to the same station
@@ -583,13 +592,14 @@ end
 
 to set_dropoff_destination [?]
   ;; assign closest truck for each demand station
-  let station_set [] ;; set station_set depending on rebalancing_submodel
-  if rebalancing_submodel = "Synchronized" [
-    if length station_set_to_drop > num_trucks [ set station_set_to_drop sublist station_set_to_drop 0 num_trucks ]
-    set station_set station_set_to_drop
+
+  if empty? station_set_to_drop [
+    ;; load next round of stations (needed for only asynchronized truck submodel)
+    set station_set_to_drop ( sublist subsequent_station_set_to_drop 0 num_trucks)
+    set subsequent_station_set_to_drop ( _tail_sublist subsequent_station_set_to_drop num_trucks )
   ]
-  if rebalancing_submodel = "Asynchronized" [ set station_set ( sublist station_set_to_drop 0 num_trucks ) ]
-  let st_id [who] of ( turtle-set station_set ) with-min[distance truck ?] ;; closest among top num_trucks
+
+  let st_id [who] of ( turtle-set station_set_to_drop ) with-min[distance truck ?] ;; closest among top num_trucks
   ask truck ? [set drop station first st_id set drpqty ceiling (([table:get _forecast t_hour] of station first st_id) * -1)]
   ; ask station_set_to_drop [ set station_set_to_drop station_set_to_drop with[self != station first st_id]]
   set station_set_to_drop ( remove ( station first st_id ) station_set_to_drop ) ;; remove the selected station to avoid 2+ trucks goes to the same station
@@ -650,9 +660,9 @@ ticks
 
 BUTTON
 580
-10
+100
 643
-43
+133
 NIL
 setup
 NIL
@@ -667,9 +677,9 @@ NIL
 
 BUTTON
 650
-10
+100
 775
-43
+133
 go once (1 time step)
 go
 NIL
@@ -726,9 +736,9 @@ PENS
 "out of docks" 1.0 0 -13345367 true "" "plot simulated_out_of_docks_count"
 
 MONITOR
-705
+700
 215
-825
+820
 260
 time to
 time
@@ -737,9 +747,9 @@ time
 11
 
 MONITOR
-585
+580
 215
-705
+700
 260
 time from
 time_previous
@@ -748,9 +758,9 @@ time_previous
 11
 
 MONITOR
-585
+580
 305
-705
+700
 350
 number of stations
 count stations
@@ -781,9 +791,9 @@ simulated_out_of_docks_count
 11
 
 MONITOR
-705
+700
 305
-825
+820
 350
 total number of bikes
 sum [ _simulated_num_bikes_available ] of stations
@@ -807,9 +817,9 @@ days
 HORIZONTAL
 
 MONITOR
-585
+580
 260
-705
+700
 305
 NIL
 sim_elapsed_hours
@@ -818,9 +828,9 @@ sim_elapsed_hours
 11
 
 MONITOR
-705
+700
 260
-825
+820
 305
 NIL
 sim_elapsed_days
@@ -840,9 +850,9 @@ Each dot represents a bike station. Red means the # bikes < threshold. Blue mean
 
 SLIDER
 730
-50
+10
 845
-83
+43
 num_trucks
 num_trucks
 1
@@ -854,9 +864,9 @@ NIL
 HORIZONTAL
 
 MONITOR
-825
+820
 215
-957
+952
 260
 NIL
 sim_timestep_counter
@@ -922,9 +932,9 @@ PENS
 
 CHOOSER
 580
-50
+10
 727
-95
+55
 rebalancing_submodel
 rebalancing_submodel
 "Disable" "Synchronized" "Asynchronized"
@@ -932,14 +942,14 @@ rebalancing_submodel
 
 SLIDER
 580
-100
+60
 740
-133
+93
 truck_traveling_speed
 truck_traveling_speed
 0.001
+0.4
 0.2
-0.056
 0.001
 1
 NIL
@@ -947,9 +957,9 @@ HORIZONTAL
 
 SLIDER
 740
-100
+60
 880
-133
+93
 timesteps_to_pick
 timesteps_to_pick
 1
@@ -962,9 +972,9 @@ HORIZONTAL
 
 SLIDER
 880
-100
+60
 1025
-133
+93
 timesteps_to_drop
 timesteps_to_drop
 1
@@ -1002,9 +1012,9 @@ sec
 HORIZONTAL
 
 MONITOR
-825
+820
 260
-1020
+1015
 305
 NIL
 num_travels_to_pick_per_truck_hour
@@ -1013,9 +1023,9 @@ num_travels_to_pick_per_truck_hour
 11
 
 MONITOR
-825
+820
 305
-1020
+1015
 350
 NIL
 num_travels_to_drop_per_truck_hour
