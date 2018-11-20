@@ -568,19 +568,31 @@ end
 
 to set_pickup_destination [?]
   ;; assign closest truck for each supply station
-    let st_id [who] of ( turtle-set sublist station_set_to_pick 0 num_trucks ) with-min[distance truck ?] ;; closest among top num_trucks
-    ask truck ? [set pick station first st_id set pckqty ceiling ([table:get _forecast t_hour] of station first st_id)]
-    ; ask station_set_to_pick [ set station_set_to_pick station_set_to_pick with[self != station first st_id]]
-  set station_set_to_pick ( remove ( station first st_id ) station_set_to_pick )
+  let station_set [] ;; set station_set depending on rebalancing_submodel
+  if rebalancing_submodel = "Synchronized" [
+    if length station_set_to_pick > num_trucks [ set station_set_to_pick sublist station_set_to_pick 0 num_trucks ]
+    set station_set station_set_to_pick
+  ]
+  if rebalancing_submodel = "Asynchronized" [ set station_set ( sublist station_set_to_pick 0 num_trucks ) ]
+  let st_id [who] of ( turtle-set station_set ) with-min[distance truck ?] ;; closest among top num_trucks
+  ask truck ? [set pick station first st_id set pckqty ceiling ([table:get _forecast t_hour] of station first st_id)]
+  ; ask station_set_to_pick [ set station_set_to_pick station_set_to_pick with[self != station first st_id]]
+  set station_set_to_pick ( remove ( station first st_id ) station_set_to_pick ) ;; remove the selected station to avoid 2+ trucks goes to the same station
 
 end
 
 to set_dropoff_destination [?]
   ;; assign closest truck for each demand station
-  let st_id [who] of ( turtle-set sublist station_set_to_drop 0 num_trucks ) with-min[distance truck ?] ;; closest among top num_trucks
-    ask truck ? [set drop station first st_id set drpqty ceiling (([table:get _forecast t_hour] of station first st_id) * -1)]
-    ; ask station_set_to_drop [ set station_set_to_drop station_set_to_drop with[self != station first st_id]]
-  set station_set_to_drop ( remove ( station first st_id ) station_set_to_drop )
+  let station_set [] ;; set station_set depending on rebalancing_submodel
+  if rebalancing_submodel = "Synchronized" [
+    if length station_set_to_drop > num_trucks [ set station_set_to_drop sublist station_set_to_drop 0 num_trucks ]
+    set station_set station_set_to_drop
+  ]
+  if rebalancing_submodel = "Asynchronized" [ set station_set ( sublist station_set_to_drop 0 num_trucks ) ]
+  let st_id [who] of ( turtle-set station_set ) with-min[distance truck ?] ;; closest among top num_trucks
+  ask truck ? [set drop station first st_id set drpqty ceiling (([table:get _forecast t_hour] of station first st_id) * -1)]
+  ; ask station_set_to_drop [ set station_set_to_drop station_set_to_drop with[self != station first st_id]]
+  set station_set_to_drop ( remove ( station first st_id ) station_set_to_drop ) ;; remove the selected station to avoid 2+ trucks goes to the same station
 
 end
 
