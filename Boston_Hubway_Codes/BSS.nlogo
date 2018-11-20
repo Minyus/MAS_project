@@ -948,8 +948,8 @@ SLIDER
 truck_traveling_speed
 truck_traveling_speed
 0.001
-0.4
-0.2
+0.5
+0.27
 0.001
 1
 NIL
