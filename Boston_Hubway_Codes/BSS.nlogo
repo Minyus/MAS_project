@@ -95,11 +95,11 @@ globals [
   subsequent_station_set_to_drop
   station_set_to_pick
   station_set_to_drop
-  sim_timestep_minutes
+  ;sim_timestep_minutes
   num_travels_to_pick
   num_travels_to_drop
-  num_travels_to_pick_per_truck_hour
-  num_travels_to_drop_per_truck_hour
+  picking_interval_minutes
+  dropping_interval_minutes
 ]
 
 
@@ -112,7 +112,7 @@ to setup
   set time_step_completed? false
   set panel_data_length 0
   set-default-shape stations "dot"
-  set sim_timestep_minutes 1 ;; Set timestep to 1 minute (1 tick = 1 minute)
+  ; set sim_timestep_minutes 1 ;; Set timestep to 1 minute (1 tick = 1 minute)
   setup-table
   setup-panel
   output-print ( word "[" date-and-time "] Set up complete." )
@@ -218,8 +218,8 @@ to go
   tick
   set sim_elapsed_hours ( ticks / sim_timestep_to_panel_timestep )
   set sim_elapsed_days ( sim_elapsed_hours / 24 )
-  set num_travels_to_pick_per_truck_hour ( num_travels_to_pick / ( num_trucks * sim_elapsed_hours ) )
-  set num_travels_to_drop_per_truck_hour ( num_travels_to_drop / ( num_trucks * sim_elapsed_hours ) )
+  if num_travels_to_pick > 0 [ set picking_interval_minutes ( ( num_trucks * sim_elapsed_hours * 60 ) / num_travels_to_pick ) ]
+  if num_travels_to_drop > 0 [ set dropping_interval_minutes ( ( num_trucks * sim_elapsed_hours * 60 ) / num_travels_to_drop ) ]
   if sim_elapsed_days >= days_to_simulate [
     output-print ( word "[" date-and-time "] Simulation of " sim_elapsed_days " days completed." )
     stop
@@ -228,6 +228,7 @@ end
 
 to update-trucks
   ;; initialize trucks
+  let truck_speed_per_timestep ( truck_speed * sim_timestep_minutes )
   if truck_movement != "Disable" [
     if not any? trucks [
       create-trucks num_trucks [
@@ -236,8 +237,8 @@ to update-trucks
         set shape "car"
         set size 0.5
         move-to station 63
-        set traveling_speed_to_pick truck_speed
-        set traveling_speed_to_drop truck_speed
+        set traveling_speed_to_pick truck_speed_per_timestep
+        set traveling_speed_to_drop truck_speed_per_timestep
         set state "waiting for pick up"
       ]
     ]
@@ -477,19 +478,19 @@ to rebalancing-submodel
   if sim_timestep_counter = 1
     [
       set_pickup_destination [ who ] of self
-      set traveling_speed_to_pick ( (distance pick) / 20 )
+      set traveling_speed_to_pick ( (distance pick) / ceiling ( 20 / sim_timestep_minutes ) )
       set color green
      ]
-    if sim_timestep_counter >= 1 and sim_timestep_counter <= 20 [ face pick fd traveling_speed_to_pick ]
-  if sim_timestep_counter = 20 [ pickup_bikes ]
-  if sim_timestep_counter = 31
+    if sim_timestep_counter >= 1 and sim_timestep_counter <= ceiling ( 20 / sim_timestep_minutes ) [ face pick fd traveling_speed_to_pick ]
+  if sim_timestep_counter = ( 20 / sim_timestep_minutes ) [ pickup_bikes ]
+  if sim_timestep_counter = ( 1 + ceiling ( 30 / sim_timestep_minutes ) )
   [
     set_dropoff_destination [ who ] of self
-    set traveling_speed_to_drop ( (distance drop) / 20 )
+    set traveling_speed_to_drop ( (distance drop) / ceiling ( 20 / sim_timestep_minutes ) )
     set color cyan
   ]
-  if sim_timestep_counter >= 31 and sim_timestep_counter <= 50 [ face drop fd traveling_speed_to_drop ]
-  if sim_timestep_counter = 50 [ dropoff_bikes  ]
+  if sim_timestep_counter >= ( 1 + ceiling ( 30 / sim_timestep_minutes ) ) and sim_timestep_counter <= ceiling ( 50 / sim_timestep_minutes ) [ face drop fd traveling_speed_to_drop ]
+  if sim_timestep_counter = ceiling ( 50 / sim_timestep_minutes ) [ dropoff_bikes ]
   ]
   ]
 
@@ -510,7 +511,7 @@ to rebalancing-submodel
         [ fd traveling_speed_to_pick ]
       ]
       if state = "picking up" [
-        ifelse pick_counter >= timesteps_to_pick ;; minutes to pick up
+        ifelse pick_counter >= ( duration_to_pick / sim_timestep_minutes ) ;; minutes to pick up
         [
           pickup_bikes
           set pick_counter 0
@@ -533,7 +534,7 @@ to rebalancing-submodel
         [ fd traveling_speed_to_drop ]
       ]
       if state = "dropping off" [
-        ifelse drop_counter >= timesteps_to_drop ;; minutes to drop off
+        ifelse drop_counter >= ( duration_to_drop / sim_timestep_minutes ) ;; minutes to drop off
         [
           dropoff_bikes
           set drop_counter 0
@@ -864,10 +865,10 @@ Each dot represents a bike station. Red means nearly empty (# bikes < threshold)
 1
 
 SLIDER
-580
-10
-705
-43
+720
+15
+845
+48
 num_trucks
 num_trucks
 1
@@ -947,9 +948,9 @@ PENS
 
 CHOOSER
 580
-120
+125
 685
-165
+170
 truck_movement
 truck_movement
 "Disable" "Synchronized" "Asynchronized"
@@ -957,9 +958,9 @@ truck_movement
 
 SLIDER
 695
-135
+140
 810
-168
+173
 truck_speed
 truck_speed
 0.001
@@ -972,11 +973,11 @@ HORIZONTAL
 
 SLIDER
 810
-135
+140
 945
-168
-timesteps_to_pick
-timesteps_to_pick
+173
+duration_to_pick
+duration_to_pick
 1
 10
 5.0
@@ -987,11 +988,11 @@ HORIZONTAL
 
 SLIDER
 945
-135
+140
 1085
-168
-timesteps_to_drop
-timesteps_to_drop
+173
+duration_to_drop
+duration_to_drop
 1
 10
 5.0
@@ -1032,8 +1033,8 @@ MONITOR
 1075
 295
 NIL
-num_travels_to_pick_per_truck_hour
-3
+picking_interval_minutes
+1
 1
 11
 
@@ -1043,16 +1044,16 @@ MONITOR
 1075
 340
 NIL
-num_travels_to_drop_per_truck_hour
-3
+dropping_interval_minutes
+1
 1
 11
 
 SLIDER
-720
-10
-855
-43
+860
+15
+995
+48
 truck_capacity
 truck_capacity
 1
@@ -1065,9 +1066,9 @@ HORIZONTAL
 
 CHOOSER
 580
-50
+65
 690
-95
+110
 rebalancing_method
 rebalancing_method
 "Forecast-based" "Status-based"
@@ -1075,9 +1076,9 @@ rebalancing_method
 
 SLIDER
 700
-65
+80
 890
-98
+113
 pct_station_capacity_to_pick
 pct_station_capacity_to_pick
 1
@@ -1090,9 +1091,9 @@ HORIZONTAL
 
 TEXTBOX
 700
-50
+65
 1075
-76
+91
 Parameters for Status-based rebalancing method
 11
 0.0
@@ -1100,9 +1101,9 @@ Parameters for Status-based rebalancing method
 
 TEXTBOX
 698
-120
+125
 978
-146
+151
 Parameters for Asynchronized truck movement\n
 11
 0.0
@@ -1110,9 +1111,9 @@ Parameters for Asynchronized truck movement\n
 
 SLIDER
 890
-65
+80
 1085
-98
+113
 pct_station_capacity_to_drop
 pct_station_capacity_to_drop
 1
@@ -1122,6 +1123,16 @@ pct_station_capacity_to_drop
 1
 %
 HORIZONTAL
+
+CHOOSER
+580
+10
+705
+55
+sim_timestep_minutes
+sim_timestep_minutes
+1 2 5 10
+0
 
 @#$#@#$#@
 ## WHAT IS IT?
