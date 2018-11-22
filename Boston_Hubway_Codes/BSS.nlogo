@@ -231,7 +231,7 @@ to update-trucks
   if rebalancing_submodel != "Disable" [
     if not any? trucks [
       create-trucks num_trucks [
-        set tcap 20
+        set tcap truck_capacity
         set cargo 0
         set shape "car"
         set size 0.5
@@ -849,9 +849,9 @@ Each dot represents a bike station. Red means the # bikes < threshold. Blue mean
 1
 
 SLIDER
-730
+740
 10
-845
+865
 43
 num_trucks
 num_trucks
@@ -860,7 +860,7 @@ num_trucks
 5.0
 1
 1
-NIL
+trucks
 HORIZONTAL
 
 MONITOR
@@ -1032,6 +1032,21 @@ num_travels_to_drop_per_truck_hour
 3
 1
 11
+
+SLIDER
+880
+10
+1015
+43
+truck_capacity
+truck_capacity
+1
+30
+20.0
+1
+1
+bikes
+HORIZONTAL
 
 @#$#@#$#@
 ## WHAT IS IT?
