@@ -1530,6 +1530,242 @@ NetLogo 6.0.4
       <value value="7"/>
     </enumeratedValueSet>
   </experiment>
+  <experiment name="Status-based" repetitions="1" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <metric>simulated_out_of_bikes_count</metric>
+    <metric>simulated_out_of_docks_count</metric>
+    <metric>sim_elapsed_hours</metric>
+    <enumeratedValueSet variable="sim_timestep_minutes">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="num_trucks">
+      <value value="1"/>
+      <value value="2"/>
+      <value value="3"/>
+      <value value="4"/>
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="duration_to_pick">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="duration_to_drop">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="truck_capacity">
+      <value value="20"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="truck_speed">
+      <value value="0.27"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wait_for_demo?">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="rebalancing_method">
+      <value value="&quot;Status-based&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wait_time">
+      <value value="0.05"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="pct_station_capacity_to_drop">
+      <value value="20"/>
+      <value value="30"/>
+      <value value="40"/>
+      <value value="50"/>
+      <value value="60"/>
+      <value value="70"/>
+      <value value="80"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="pct_station_capacity_to_pick">
+      <value value="20"/>
+      <value value="30"/>
+      <value value="40"/>
+      <value value="50"/>
+      <value value="60"/>
+      <value value="70"/>
+      <value value="80"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="truck_movement">
+      <value value="&quot;Asynchronized&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="shortage_threshold">
+      <value value="3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="days_to_simulate">
+      <value value="7"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="Status-based_45_timestep1min" repetitions="1" runMetricsEveryStep="false">
+    <setup>setup</setup>
+    <go>go</go>
+    <metric>simulated_out_of_bikes_count</metric>
+    <metric>simulated_out_of_docks_count</metric>
+    <metric>sim_elapsed_hours</metric>
+    <enumeratedValueSet variable="sim_timestep_minutes">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="num_trucks">
+      <value value="1"/>
+      <value value="2"/>
+      <value value="3"/>
+      <value value="4"/>
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="duration_to_pick">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="duration_to_drop">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="truck_capacity">
+      <value value="20"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="truck_speed">
+      <value value="0.27"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wait_for_demo?">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="rebalancing_method">
+      <value value="&quot;Status-based&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wait_time">
+      <value value="0.05"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="pct_station_capacity_to_drop">
+      <value value="30"/>
+      <value value="50"/>
+      <value value="70"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="pct_station_capacity_to_pick">
+      <value value="30"/>
+      <value value="50"/>
+      <value value="70"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="truck_movement">
+      <value value="&quot;Asynchronized&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="shortage_threshold">
+      <value value="3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="days_to_simulate">
+      <value value="7"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="Status-based_45_timestep5min" repetitions="1" runMetricsEveryStep="false">
+    <setup>setup</setup>
+    <go>go</go>
+    <metric>simulated_out_of_bikes_count</metric>
+    <metric>simulated_out_of_docks_count</metric>
+    <metric>sim_elapsed_hours</metric>
+    <enumeratedValueSet variable="sim_timestep_minutes">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="num_trucks">
+      <value value="1"/>
+      <value value="2"/>
+      <value value="3"/>
+      <value value="4"/>
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="duration_to_pick">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="duration_to_drop">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="truck_capacity">
+      <value value="20"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="truck_speed">
+      <value value="0.27"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wait_for_demo?">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="rebalancing_method">
+      <value value="&quot;Status-based&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wait_time">
+      <value value="0.05"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="pct_station_capacity_to_drop">
+      <value value="30"/>
+      <value value="50"/>
+      <value value="70"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="pct_station_capacity_to_pick">
+      <value value="30"/>
+      <value value="50"/>
+      <value value="70"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="truck_movement">
+      <value value="&quot;Asynchronized&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="shortage_threshold">
+      <value value="3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="days_to_simulate">
+      <value value="7"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="Status-based_45_timestep1min_rep10" repetitions="10" runMetricsEveryStep="false">
+    <setup>setup</setup>
+    <go>go</go>
+    <metric>simulated_out_of_bikes_count</metric>
+    <metric>simulated_out_of_docks_count</metric>
+    <metric>sim_elapsed_hours</metric>
+    <enumeratedValueSet variable="sim_timestep_minutes">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="num_trucks">
+      <value value="1"/>
+      <value value="2"/>
+      <value value="3"/>
+      <value value="4"/>
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="duration_to_pick">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="duration_to_drop">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="truck_capacity">
+      <value value="20"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="truck_speed">
+      <value value="0.27"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wait_for_demo?">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="rebalancing_method">
+      <value value="&quot;Status-based&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wait_time">
+      <value value="0.05"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="pct_station_capacity_to_drop">
+      <value value="30"/>
+      <value value="50"/>
+      <value value="70"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="pct_station_capacity_to_pick">
+      <value value="30"/>
+      <value value="50"/>
+      <value value="70"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="truck_movement">
+      <value value="&quot;Asynchronized&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="shortage_threshold">
+      <value value="3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="days_to_simulate">
+      <value value="7"/>
+    </enumeratedValueSet>
+  </experiment>
 </experiments>
 @#$#@#$#@
 @#$#@#$#@
