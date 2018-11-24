@@ -229,7 +229,7 @@ end
 to update-trucks
   ;; initialize trucks
   let truck_speed_per_timestep ( truck_speed * sim_timestep_minutes )
-  if truck_movement != "Disable" [
+  if rebalancing_method != "Disable" [
     if not any? trucks [
       create-trucks num_trucks [
         set tcap truck_capacity
@@ -595,7 +595,7 @@ to set_pickup_destination [?]
   ask truck ? [
     set pick station first st_id
     if rebalancing_method = "Forecast-based" [ set pckqty ceiling ([table:get _forecast t_hour] of pick) ]
-    if rebalancing_method = "Status-based" [ set pckqty ceiling ( 0.5 * [ capacity ] of pick ) ]
+    if rebalancing_method = "Status-based" [ set pckqty round ( ( pct_station_capacity_to_pick / 100 ) * [ capacity ] of pick ) ]
   ]
   ; ask station_set_to_pick [ set station_set_to_pick station_set_to_pick with[self != station first st_id]]
   set station_set_to_pick ( remove ( station first st_id ) station_set_to_pick ) ;; remove the selected station to avoid 2+ trucks goes to the same station
@@ -615,7 +615,7 @@ to set_dropoff_destination [?]
   ask truck ? [
     set drop station first st_id
     if rebalancing_method = "Forecast-based" [ set drpqty ceiling (([table:get _forecast t_hour] of drop ) * -1) ]
-    if rebalancing_method = "Status-based" [ set drpqty ceiling ( 0.5 * [ capacity ] of drop ) ]
+    if rebalancing_method = "Status-based" [ set drpqty round ( ( pct_station_capacity_to_drop / 100 ) * [ capacity ] of drop ) ]
   ]
   ; ask station_set_to_drop [ set station_set_to_drop station_set_to_drop with[self != station first st_id]]
   set station_set_to_drop ( remove ( station first st_id ) station_set_to_drop ) ;; remove the selected station to avoid 2+ trucks goes to the same station
@@ -953,8 +953,8 @@ CHOOSER
 170
 truck_movement
 truck_movement
-"Disable" "Synchronized" "Asynchronized"
-2
+"Synchronized" "Asynchronized"
+1
 
 SLIDER
 695
@@ -1071,8 +1071,8 @@ CHOOSER
 110
 rebalancing_method
 rebalancing_method
-"Forecast-based" "Status-based"
-1
+"Disable" "Forecast-based" "Status-based"
+2
 
 SLIDER
 700
@@ -1766,7 +1766,7 @@ NetLogo 6.0.4
       <value value="7"/>
     </enumeratedValueSet>
   </experiment>
-  <experiment name="Forecast-based_5_timestep1min_rep10" repetitions="10" runMetricsEveryStep="false">
+  <experiment name="Forecast-based_10_timestep1min_rep10" repetitions="10" runMetricsEveryStep="false">
     <setup>setup</setup>
     <go>go</go>
     <metric>simulated_out_of_bikes_count</metric>
@@ -1799,6 +1799,7 @@ NetLogo 6.0.4
     </enumeratedValueSet>
     <enumeratedValueSet variable="rebalancing_method">
       <value value="&quot;Forecast-based&quot;"/>
+      <value value="&quot;Disable&quot;"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="wait_time">
       <value value="0.05"/>
