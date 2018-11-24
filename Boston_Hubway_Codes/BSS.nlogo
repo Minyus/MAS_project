@@ -595,7 +595,7 @@ to set_pickup_destination [?]
   ask truck ? [
     set pick station first st_id
     if rebalancing_method = "Forecast-based" [ set pckqty ceiling ([table:get _forecast t_hour] of pick) ]
-    if rebalancing_method = "Status-based" [ set pckqty round ( ( pct_station_capacity_to_pick / 100 ) * [ capacity ] of pick ) ]
+    if rebalancing_method = "Status-based" [ set pckqty round ( ( pct_station_capacity_to_move / 100 ) * [ capacity ] of pick ) ]
   ]
   ; ask station_set_to_pick [ set station_set_to_pick station_set_to_pick with[self != station first st_id]]
   set station_set_to_pick ( remove ( station first st_id ) station_set_to_pick ) ;; remove the selected station to avoid 2+ trucks goes to the same station
@@ -615,7 +615,7 @@ to set_dropoff_destination [?]
   ask truck ? [
     set drop station first st_id
     if rebalancing_method = "Forecast-based" [ set drpqty ceiling (([table:get _forecast t_hour] of drop ) * -1) ]
-    if rebalancing_method = "Status-based" [ set drpqty round ( ( pct_station_capacity_to_drop / 100 ) * [ capacity ] of drop ) ]
+    if rebalancing_method = "Status-based" [ set drpqty round ( ( pct_station_capacity_to_move / 100 ) * [ capacity ] of drop ) ]
   ]
   ; ask station_set_to_drop [ set station_set_to_drop station_set_to_drop with[self != station first st_id]]
   set station_set_to_drop ( remove ( station first st_id ) station_set_to_drop ) ;; remove the selected station to avoid 2+ trucks goes to the same station
@@ -1077,13 +1077,13 @@ rebalancing_method
 SLIDER
 700
 80
-890
+932
 113
-pct_station_capacity_to_pick
-pct_station_capacity_to_pick
+pct_station_capacity_to_move
+pct_station_capacity_to_move
 1
 100
-50.0
+20.0
 1
 1
 %
@@ -1108,21 +1108,6 @@ Parameters for Asynchronized truck movement\n
 11
 0.0
 1
-
-SLIDER
-890
-80
-1085
-113
-pct_station_capacity_to_drop
-pct_station_capacity_to_drop
-1
-100
-50.0
-1
-1
-%
-HORIZONTAL
 
 CHOOSER
 580
@@ -1857,6 +1842,59 @@ NetLogo 6.0.4
     </enumeratedValueSet>
     <enumeratedValueSet variable="pct_station_capacity_to_pick">
       <value value="50"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="truck_movement">
+      <value value="&quot;Asynchronized&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="shortage_threshold">
+      <value value="3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="days_to_simulate">
+      <value value="7"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="Status-based_20_timestep1min_rep10" repetitions="10" sequentialRunOrder="false" runMetricsEveryStep="false">
+    <setup>setup</setup>
+    <go>go</go>
+    <metric>simulated_out_of_bikes_count</metric>
+    <metric>simulated_out_of_docks_count</metric>
+    <metric>sim_elapsed_hours</metric>
+    <enumeratedValueSet variable="sim_timestep_minutes">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="num_trucks">
+      <value value="1"/>
+      <value value="2"/>
+      <value value="3"/>
+      <value value="4"/>
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="duration_to_pick">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="duration_to_drop">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="truck_capacity">
+      <value value="20"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="truck_speed">
+      <value value="0.27"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wait_for_demo?">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="rebalancing_method">
+      <value value="&quot;Status-based&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wait_time">
+      <value value="0.05"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="pct_station_capacity_to_move">
+      <value value="10"/>
+      <value value="20"/>
+      <value value="30"/>
+      <value value="40"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="truck_movement">
       <value value="&quot;Asynchronized&quot;"/>
