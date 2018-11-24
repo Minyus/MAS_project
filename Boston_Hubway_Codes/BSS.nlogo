@@ -871,8 +871,8 @@ SLIDER
 48
 num_trucks
 num_trucks
-1
-20
+0
+10
 5.0
 1
 1
@@ -1829,11 +1829,7 @@ NetLogo 6.0.4
       <value value="1"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="num_trucks">
-      <value value="1"/>
-      <value value="2"/>
-      <value value="3"/>
-      <value value="4"/>
-      <value value="5"/>
+      <value value="0"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="duration_to_drop">
       <value value="5"/>
